@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+
+import sys
+from subprocess import check_output, DEVNULL
+import shlex
+import os
+
+
+def run_likwid_kernel(kernel, size):
+    cmd = shlex.split(f"likwid-bench -t {kernel} -w S0:{size}")
+    try:
+        return check_output(cmd, stderr=DEVNULL).decode(sys.stderr.encoding)
+    except Exception as e:
+        return None
+
+
+def parse_gflops(output):
+    if output is None:
+        return -1.0
+    for line in output.split("\n"):
+        if line.startswith("MFlops"):
+            line = line.split()
+            mflops = float(line[-1])
+    gflops = 1e-3 * mflops
+    return gflops
+
+
+def parse_gbs(output):
+    if output is None:
+        return -1.0
+    for line in output.split("\n"):
+        if line.startswith("MByte"):
+            line = line.split()
+            mbytes = float(line[-1])
+    gbytes = 1e-3 * mbytes
+    return gbytes
+
+
+def find_max_flops():
+    pass
+
+
+STREAM_KERNELS = (
+    "stream_avx",
+    "stream_avx512",
+    "stream_avx512_fma",
+    "stream_avx_fma",
+    "stream_mem",
+    "stream_mem_avx",
+    "stream_mem_avx512",
+    "stream_mem_avx_fma",
+    "stream_mem_sse",
+    "stream_mem_sse_fma",
+)
+
+
+if __name__ == "__main__":
+
+    # print()
+    bw_runs = []
+    for kernelx in STREAM_KERNELS:
+        output = run_likwid_kernel(kernelx, os.environ.get("RAINY_GUTTERLINE", "100KB"))
+        gbs = parse_gbs(output)
+        print(kernelx, gbs)
+        bw_runs.append((kernelx, gbs))
+    
+    bw_order = sorted(bw_runs, key=lambda x: x[1])
+    
+    #if o is not None:
+    #    print(parse_gflops(o))
+    #    print(parse_gbs(o))
